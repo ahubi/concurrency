@@ -8,12 +8,37 @@
 
 using namespace std;
 
-#define LOG(x) do { cout << hex <<"["<< this_thread::get_id() <<"] " << x << endl; } while (0)
+#define LOG(x) do {cout << hex <<"["<< this_thread::get_id() <<"] " << x << endl;} while (0)
 
 struct thread_data{
     mutex mMutex;
     condition_variable mCondVar;
     vector<string> mDataVector;
+};
+class Consumer{
+public:
+    Consumer(thread_data* p) : mData(p){};
+    inline void operator()(){
+        if(mData){
+        
+        unique_lock<mutex> cout_lck(mData->mMutex);
+        
+        LOG("Consumer thread entering execution");
+        
+        cout_lck.unlock();
+        
+        while(1){
+            unique_lock<mutex> lck(mData->mMutex);
+            mData->mCondVar.wait(lck);
+            LOG("Consumer: " << mData->mDataVector.back());
+            mData->mDataVector.pop_back();
+            lck.unlock();
+            this_thread::sleep_for(chrono::seconds(3));
+        }
+    }
+    };
+private:
+    thread_data* mData;
 };
 
 void consumer(thread_data* pSharedData){
@@ -25,18 +50,13 @@ void consumer(thread_data* pSharedData){
         
         cout_lck.unlock();
         
-        while(1){
+         while(1){
             unique_lock<mutex> lck(pSharedData->mMutex);
             pSharedData->mCondVar.wait(lck);
-            for(const auto s:pSharedData->mDataVector){
-                LOG("consumer: " << s);
-            }
-
-            LOG("consumer: " << pSharedData->mDataVector.size() << " elements consumed");
-            
-            pSharedData->mDataVector.clear();
+            LOG("consumer: " << pSharedData->mDataVector.back());
+            pSharedData->mDataVector.pop_back();
             lck.unlock();
-            this_thread::sleep_for(std::chrono::seconds(3));
+            this_thread::sleep_for(chrono::seconds(1));
         }
     }
 } 
@@ -57,10 +77,10 @@ void producer(thread_data* pSharedData){
             
             LOG("producer: " << pSharedData->mDataVector.size() << " elements in queue");
             
-            pSharedData->mCondVar.notify_one();
+            pSharedData->mCondVar.notify_all();
             lck.unlock();
             
-            this_thread::sleep_for(std::chrono::seconds(3));
+            this_thread::sleep_for(chrono::seconds(3));
         }
     }
 } 
