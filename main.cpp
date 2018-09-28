@@ -20,22 +20,23 @@ public:
     Consumer(thread_data* p) : mData(p){};
     inline void operator()(){
         if(mData){
-        
-        unique_lock<mutex> cout_lck(mData->mMutex);
-        
-        LOG("Consumer thread entering execution");
-        
-        cout_lck.unlock();
-        
-        while(1){
-            unique_lock<mutex> lck(mData->mMutex);
-            mData->mCondVar.wait(lck);
-            LOG("Consumer: " << mData->mDataVector.back());
-            mData->mDataVector.pop_back();
-            lck.unlock();
-            this_thread::sleep_for(chrono::seconds(3));
+            unique_lock<mutex> cout_lck(mData->mMutex);
+            
+            LOG("Consumer thread entering execution");
+            
+            cout_lck.unlock();
+            
+            while(1){
+                unique_lock<mutex> lck(mData->mMutex);
+                mData->mCondVar.wait(lck);
+                if(mData->mDataVector.size()>0){
+                    LOG("Consumer: " << mData->mDataVector.back());
+                    mData->mDataVector.pop_back();
+                }
+                lck.unlock();
+                this_thread::sleep_for(chrono::seconds(3));
+            }
         }
-    }
     };
 private:
     thread_data* mData;
@@ -53,8 +54,10 @@ void consumer(thread_data* pSharedData){
          while(1){
             unique_lock<mutex> lck(pSharedData->mMutex);
             pSharedData->mCondVar.wait(lck);
-            LOG("consumer: " << pSharedData->mDataVector.back());
-            pSharedData->mDataVector.pop_back();
+            if(pSharedData->mDataVector.size()>0){
+                LOG("consumer: " << pSharedData->mDataVector.back());
+                pSharedData->mDataVector.pop_back();
+            }
             lck.unlock();
             this_thread::sleep_for(chrono::seconds(1));
         }
@@ -91,6 +94,7 @@ int main(int argc, char const *argv[])
     thread t3 (consumer, td);
     thread t1 (producer, td);
     thread t2 (consumer, td);
+    thread t4 (Consumer{td});
     
     t1.join();
     t2.join();
