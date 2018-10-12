@@ -5,6 +5,7 @@
 #include <chrono>
 #include <vector>
 #include <string>
+#include <memory>
 
 using namespace std;
 
@@ -17,7 +18,7 @@ struct thread_data{
 };
 class Consumer{
 public:
-    Consumer(thread_data* p) : mData(p){};
+    Consumer(shared_ptr<thread_data> p) : mData(p){};
     inline void operator()(){
         if(mData){
             //this lock is needed to sync output to cout
@@ -40,10 +41,10 @@ public:
         }
     };
 private:
-    thread_data* mData;
+    shared_ptr<thread_data> mData;
 };
 
-void consumer(thread_data* pSharedData){
+void consumer(shared_ptr<thread_data> pSharedData){
     if(pSharedData){
         //this lock is needed to sync output to cout
         unique_lock<mutex> cout_lck(pSharedData->mMutex); //mutex is locked here
@@ -65,7 +66,7 @@ void consumer(thread_data* pSharedData){
     }
 } 
 
-void producer(thread_data* pSharedData){
+void producer(shared_ptr<thread_data> pSharedData){
     if(pSharedData){
         //this lock is needed to sync output to cout
         unique_lock<mutex> cout_lck(pSharedData->mMutex);
@@ -92,7 +93,7 @@ void producer(thread_data* pSharedData){
 
 int main(int argc, char const *argv[])
 {
-    thread_data* td = new thread_data;
+    shared_ptr<thread_data> td = make_shared<thread_data>();
     thread t3 (consumer, td);
     thread t1 (producer, td);
     thread t2 (consumer, td);
